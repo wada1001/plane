@@ -1,20 +1,51 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"sort"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/mlange-42/arche/ecs"
+	"github.com/wada1001/plane/src/entites"
+	"github.com/wada1001/plane/src/renderer"
 )
 
-type Game struct{}
+type System func(w *ecs.World) error
+type Renderer func(w *ecs.World) (renderer.CommandBuffer, error)
+
+type Game struct {
+	World    ecs.World
+	Systems  []System
+	Renderer []Renderer
+}
 
 func (g *Game) Update() error {
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	ebitenutil.DebugPrint(screen, "Hello, World!")
+	cb := renderer.CommandBuffer{}
+	for _, r := range g.Renderer {
+		t, err := r(&g.World)
+		if err != nil {
+			panic(err)
+		}
+
+		cb = append(cb, t...)
+	}
+
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("%d", len(cb)))
+	sort.Slice(cb, func(i, j int) bool {
+
+		return cb[i].GetOrder() < cb[j].GetOrder()
+	})
+
+	for _, c := range cb {
+
+		c.Execute(screen)
+	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -24,7 +55,18 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 func main() {
 	ebiten.SetWindowSize(640, 480)
 	ebiten.SetWindowTitle("Hello, World!")
-	if err := ebiten.RunGame(&Game{}); err != nil {
+
+	game := &Game{
+		World:   ecs.NewWorld(),
+		Systems: []System{},
+		Renderer: []Renderer{
+			renderer.Proccess,
+		},
+	}
+
+	entites.Create(&game.World)
+
+	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
 	}
 }
