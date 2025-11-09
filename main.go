@@ -1,15 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"sort"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/mlange-42/arche/ecs"
 	"github.com/wada1001/plane/src/entites"
 	"github.com/wada1001/plane/src/renderer"
+	"github.com/wada1001/plane/src/systems"
 )
 
 type System func(w *ecs.World) error
@@ -22,6 +21,12 @@ type Game struct {
 }
 
 func (g *Game) Update() error {
+	for _, r := range g.Systems {
+		if err := r(&g.World); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -36,7 +41,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		cb = append(cb, t...)
 	}
 
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("%d", len(cb)))
+	// ebitenutil.DebugPrint(screen, fmt.Sprintf("%d", len(cb)))
 	sort.Slice(cb, func(i, j int) bool {
 
 		return cb[i].GetOrder() < cb[j].GetOrder()
@@ -57,8 +62,11 @@ func main() {
 	ebiten.SetWindowTitle("Hello, World!")
 
 	game := &Game{
-		World:   ecs.NewWorld(),
-		Systems: []System{},
+		World: ecs.NewWorld(),
+		Systems: []System{
+			systems.Process,
+			systems.ProcessRain,
+		},
 		Renderer: []Renderer{
 			renderer.Proccess,
 		},
